@@ -3422,7 +3422,7 @@ static void ndpi_conf_magic_ct(void) {
 			"Different MAGIC_CT disables nDPI conntrack syncronization\n");
 	if (MAGIC_CT == 0) {
 		pr_info("set_magic_ct is zero. Generate new MAGIC_CT value\n");
-		ndpi_mt_gen_magic_ct();
+		ndpi_gen_magic_ct();
 	}
 
 	pr_info("Current MAGIC_CT value is %d\n", MAGIC_CT);
