@@ -205,7 +205,7 @@ MODULE_ALIAS("ipt_NDPI");
 #include "../libre/regexp.h"
 
 #define NDPI_ID 0x44504900ul
-#define MAGIC_CT 0xa55a
+
 struct nf_ct_ext_labels { /* max size 128 bit */
 	/* words must be first byte for compatible with NF_CONNLABELS
 	 * kernels 3.8-4.7 has variable size of nf_ext_labels
@@ -265,6 +265,9 @@ static inline int flow_have_info( struct nf_ct_ext_ndpi *c) {
 }
 
 static ndpi_protocol_nf proto_null = {NDPI_PROTOCOL_UNKNOWN , NDPI_PROTOCOL_UNKNOWN};
+
+static unsigned short MAGIC_CT = 0xa55a;
+static unsigned short set_magic_ct = 0xa55a;
 
 unsigned long int ndpi_flow_limit=10000000; // 4.3Gb
 unsigned long int ndpi_enable_flow=0;
@@ -328,6 +331,9 @@ static unsigned long  ndpi_p_ndpi_match=0;
 static unsigned long  ndpi_p_free_magic=0;
 
 unsigned long  ndpi_btp_tm[20]={0,};
+
+module_param_named(set_magic_ct, set_magic_ct, ushort, 0400);
+MODULE_PARM_DESC(set_magic_ct, "Set new MAGIC_CT value. Default: 0xa55a. Set 0 for random MAGIC_CT");
 
 module_param_named(xt_debug,   ndpi_log_debug, ulong, 0600);
 MODULE_PARM_DESC(xt_debug,"Debug level for xt_ndpi (bitmap).");
@@ -3402,9 +3408,40 @@ static struct pernet_operations ndpi_net_ops = {
         .size   = sizeof(struct ndpi_net),
 };
 
+static inline
+void ndpi_gen_magic_ct(void) {
+	unsigned short new_magic_ct;
+	do {
+		get_random_bytes(&new_magic_ct, sizeof(new_magic_ct));
+	} while(new_magic_ct == 0);
+
+	MAGIC_CT = new_magic_ct;
+}
+
+static void ndpi_conf_magic_ct(void) {
+	pr_info("Note: indentical MAGIC_CT on clusters with conntrackd sync cause kernel panic\n"
+			"Non-indentical MAGIC_CT are disable nDPI conntrack syncronization\n");
+	if (set_magic_ct == 0) {
+		pr_info("set_magic_ct is zero. Generate new MAGIC_CT value\n");
+		ndpi_gen_magic_ct();
+	} else {
+		if (set_magic_ct == MAGIC_CT) {
+			pr_info("set_magic_ct is not set or have default value\n");
+			return;
+		}
+
+		MAGIC_CT = set_magic_ct;
+	}
+
+	pr_info("Current MAGIC_CT value is %d\n", MAGIC_CT);
+}
+
+
 static int __init ndpi_mt_init(void)
 {
         int ret;
+
+	ndpi_conf_magic_ct();
 
 	ndpi_size_flow_struct = ndpi_detection_get_sizeof_ndpi_flow_struct();
 	set_ndpi_malloc(malloc_wrapper);
