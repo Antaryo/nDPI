@@ -267,7 +267,6 @@ static inline int flow_have_info( struct nf_ct_ext_ndpi *c) {
 static ndpi_protocol_nf proto_null = {NDPI_PROTOCOL_UNKNOWN , NDPI_PROTOCOL_UNKNOWN};
 
 static unsigned short MAGIC_CT = 0xa55a;
-static unsigned short set_magic_ct = 0xa55a;
 
 unsigned long int ndpi_flow_limit=10000000; // 4.3Gb
 unsigned long int ndpi_enable_flow=0;
@@ -332,7 +331,7 @@ static unsigned long  ndpi_p_free_magic=0;
 
 unsigned long  ndpi_btp_tm[20]={0,};
 
-module_param_named(set_magic_ct, set_magic_ct, ushort, 0400);
+module_param_named(set_magic_ct, MAGIC_CT, ushort, 0400);
 MODULE_PARM_DESC(set_magic_ct, "Set new MAGIC_CT value. Default: 0xa55a. Set 0 for random MAGIC_CT");
 
 module_param_named(xt_debug,   ndpi_log_debug, ulong, 0600);
@@ -3420,17 +3419,10 @@ void ndpi_gen_magic_ct(void) {
 
 static void ndpi_conf_magic_ct(void) {
 	pr_info("Note: indentical MAGIC_CT on clusters with conntrackd sync cause kernel panic\n"
-			"Non-indentical MAGIC_CT are disable nDPI conntrack syncronization\n");
-	if (set_magic_ct == 0) {
+			"Different MAGIC_CT disables nDPI conntrack syncronization\n");
+	if (MAGIC_CT == 0) {
 		pr_info("set_magic_ct is zero. Generate new MAGIC_CT value\n");
-		ndpi_gen_magic_ct();
-	} else {
-		if (set_magic_ct == MAGIC_CT) {
-			pr_info("set_magic_ct is not set or have default value\n");
-			return;
-		}
-
-		MAGIC_CT = set_magic_ct;
+		ndpi_mt_gen_magic_ct();
 	}
 
 	pr_info("Current MAGIC_CT value is %d\n", MAGIC_CT);
